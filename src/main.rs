@@ -59,7 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/analyze", post(analyze_player))
         
         .route("/history/{name}", get(get_player_by_name))
-        .route("/history/id", get(get_player_history))
+        .route("/history/{id}", get(get_player_history))
         .route("/history", get(get_all_players))
         .layer(TraceLayer::new_for_http())
         .merge(protected_routes)
