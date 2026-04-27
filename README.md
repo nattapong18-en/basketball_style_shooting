@@ -40,4 +40,4 @@ This project is built on the foundation of resilient and modular design, emphasi
 | `DELETE` | `/delete/{id}` | Remove a player profile | **Yes (Bearer Token)** |
 
 ---
-**Developed by [Vesper.rs](https://github.com/nattapaong)** *Building robust systems with Rust.*
+**Developed by [Vesper.rs](https://github.com/nattapong18-en)** *Building robust systems with Rust.*
