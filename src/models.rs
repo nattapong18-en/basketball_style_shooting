@@ -1,11 +1,22 @@
+use axum::extract::FromRef;
 use serde::{Deserialize, Serialize};
-
 #[derive(Clone)]
 pub struct AppState {
     pub pool: sqlx::SqlitePool,
     pub http_client: reqwest::Client,
 }
 
+impl FromRef<AppState> for sqlx::SqlitePool {
+    fn from_ref(state: &AppState) -> sqlx::SqlitePool {
+        state.pool.clone()
+    }
+}
+
+impl FromRef<AppState> for reqwest::Client {
+    fn from_ref(state: &AppState) -> Self {
+        state.http_client.clone()
+    }
+}
 #[derive(Serialize, Deserialize, Clone)]
 pub struct PlayerProfile {
     pub id: i64,

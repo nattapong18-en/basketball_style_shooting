@@ -1,3 +1,4 @@
+use crate::models::{AppState, CreatePlayer, PlayerProfile, UpdatePlayer};
 use axum::http::HeaderMap;
 use axum::{
     Json,
@@ -7,7 +8,6 @@ use axum::{
     response::IntoResponse,
 };
 use subtle::ConstantTimeEq;
-use crate::models::{AppState, CreatePlayer, PlayerProfile, UpdatePlayer};
 
 pub async fn auth_middleware(
     headers: HeaderMap,
@@ -22,10 +22,10 @@ pub async fn auth_middleware(
 
         if let Ok(token_str) = token.to_str() {
             let is_valid = token_str.as_bytes().ct_eq(valid_token.as_bytes());
-             if is_valid.into() {
+            if is_valid.into() {
                 return next.run(request).await;
-             }
-        }   
+            }
+        }
     }
     (StatusCode::UNAUTHORIZED, "Unauthorized").into_response()
 }
@@ -50,7 +50,10 @@ pub async fn analyze_player(
                 name: payload.name,
                 shooting_style: payload.shooting_style,
             };
-            let alert_message = format!("New player analyzed: {} with shooting style {}", new_player.name, new_player.shooting_style);
+            let alert_message = format!(
+                "New player analyzed: {} with shooting style {}",
+                new_player.name, new_player.shooting_style
+            );
             notify_line(&state.http_client, &alert_message).await;
             let feedback = new_player.analyze();
             (StatusCode::CREATED, Json(feedback)).into_response()
@@ -126,7 +129,13 @@ pub async fn update_player(
     .execute(&state.pool)
     .await;
     match result {
-        Ok(_) => (StatusCode::OK, "Player updated successfully").into_response(),
+        Ok(db_result) => {
+            if db_result.rows_affected() > 0 {
+                (StatusCode::OK, "Player updated successfully").into_response()
+            } else {
+                (StatusCode::NOT_FOUND, "Player not found").into_response()
+            }
+        }
         Err(e) => {
             eprintln!("Error updating player: {}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to update player").into_response()
@@ -134,12 +143,21 @@ pub async fn update_player(
     }
 }
 
-pub async fn delete_player(State(state): State<AppState>, Path(id): Path<i64>) -> impl IntoResponse {
+pub async fn delete_player(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+) -> impl IntoResponse {
     let result = sqlx::query!("DELETE FROM players WHERE id = ?", id)
         .execute(&state.pool)
         .await;
     match result {
-        Ok(_) => (StatusCode::OK, "Player deleted successfully").into_response(),
+        Ok(db_result) => {
+            if db_result.rows_affected() > 0 {
+                (StatusCode::OK, "Player deleted successfully").into_response()
+            } else {
+                (StatusCode::NOT_FOUND, "Player not found").into_response()
+            }
+        }
         Err(e) => {
             eprintln!("Error deleting player: {}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Failed to delete player").into_response()
@@ -149,12 +167,18 @@ pub async fn delete_player(State(state): State<AppState>, Path(id): Path<i64>) -
 
 pub async fn notify_line(client: &reqwest::Client, message: &str) {
     println!("Starting LINE notification...");
-    let token = std::env::var("LINE_CHANNEL_TOKEN").unwrap_or_default().trim().to_string();
-    let user_id = std::env::var("LINE_USER_ID").unwrap_or_default().trim().to_string();
+    let token = std::env::var("LINE_CHANNEL_TOKEN")
+        .unwrap_or_default()
+        .trim()
+        .to_string();
+    let user_id = std::env::var("LINE_USER_ID")
+        .unwrap_or_default()
+        .trim()
+        .to_string();
 
     if token.is_empty() || user_id.is_empty() {
         println!("LINE notification not configured.");
-        return ;
+        return;
     }
 
     let payload = serde_json::json!({
@@ -174,14 +198,20 @@ pub async fn notify_line(client: &reqwest::Client, message: &str) {
         .send()
         .await;
 
-       match res {
-           Ok(respone) => {
-            let status =  respone.status();
-            let body = respone.text().await.unwrap_or_else(|_| "Failed to read response body".to_string());
-            println!("LINE notification sent successfully! Status: {}, Response: {}", status, body);
-           }
-              Err(e) => {
-                eprintln!("Failed to send LINE notification: {}", e);
-              }
-       } 
-    } 
+    match res {
+        Ok(respone) => {
+            let status = respone.status();
+            let body = respone
+                .text()
+                .await
+                .unwrap_or_else(|_| "Failed to read response body".to_string());
+            println!(
+                "LINE notification sent successfully! Status: {}, Response: {}",
+                status, body
+            );
+        }
+        Err(e) => {
+            eprintln!("Failed to send LINE notification: {}", e);
+        }
+    }
+}

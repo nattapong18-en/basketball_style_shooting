@@ -9,10 +9,13 @@ use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use std::str::FromStr;
 use tokio::net::TcpListener;
 
-use crate::{handler::{
-    analyze_player, auth_middleware, delete_player, get_all_players, get_player_by_name,
-    get_player_history,update_player,
-}, models::AppState};
+use crate::{
+    handler::{
+        analyze_player, auth_middleware, delete_player, get_all_players, get_player_by_name,
+        get_player_history, update_player,
+    },
+    models::AppState,
+};
 
 use tower_http::trace::TraceLayer;
 
@@ -28,26 +31,23 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     dotenvy::dotenv().ok();
     let db_url = std::env::var("DATABASE_URL")?;
 
-    let connection_options = SqliteConnectOptions::from_str(&db_url)?
-        .create_if_missing(true);
+    let connection_options = SqliteConnectOptions::from_str(&db_url)?.create_if_missing(true);
 
     let pool = SqlitePoolOptions::new()
         .max_connections(5)
         .connect_with(connection_options)
         .await?;
-        
-    
+
     let state = AppState {
         pool,
         http_client: reqwest::Client::builder()
             .user_agent("bot-notify")
-            .build()?
+            .build()?,
     };
 
     sqlx::migrate!()
-        .run(&state.pool)
-        .await?;
-        
+    .run(&state.pool)
+    .await?;
 
     let protected_routes = Router::new()
         .route("/update/{id}", put(update_player))
@@ -57,7 +57,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = Router::new()
         .route("/", get(|| async { "Welcome to Basketball API" }))
         .route("/analyze", post(analyze_player))
-        
         .route("/history/{name}", get(get_player_by_name))
         .route("/history/{id}", get(get_player_history))
         .route("/history", get(get_all_players))
